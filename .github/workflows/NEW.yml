@@ -1,4 +1,4 @@
-name: FreeRDP
+name: FreeRDP_From_hoanhanhvunick1
 
 on: workflow_dispatch
 
@@ -6,46 +6,57 @@ jobs:
   build:
 
     runs-on: windows-latest
-    timeout-minutes: 9999
+    timeout-minutes: 9999 # Cẩn thận với timeout quá dài
 
     steps:
-    - name: Downloading Ngrok and other files.
+    - name: Download Ngrok and required scripts from hoanhanhvunick1/rdpaa
       run: |
+        # Tải Ngrok (link này không đổi)
         Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-        Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/start.bat -OutFile start.bat
-        Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/wallpaper.jpg -OutFile wallpaper.jpg
-        Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/wallpaper.bat -OutFile wallpaper.bat
-    - name: Extracting Ngrok Files.
-      run: Expand-Archive ngrok.zip
-    - name: Connecting to your Ngrok account.
-      # !!! CẢNH BÁO BẢO MẬT NGHIÊM TRỌNG !!!
-      # Token Ngrok được nhúng trực tiếp vào mã nguồn.
-      # Điều này tiềm ẩn rủi ro lộ thông tin xác thực.
-      run: .\ngrok\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm
-      # Không cần dùng env: khi token đã được điền trực tiếp ở trên
-      # env:
-      #   NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-    - name: Activating RDP access.
+        # Tải các file từ kho hoanhanhvunick1/rdpaa
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/start.bat -OutFile start.bat
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/loop.ps1 -OutFile loop.ps1
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.jpg -OutFile wallpaper.jpg
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.bat -OutFile wallpaper.bat
+      shell: powershell
+
+    - name: Extract Ngrok Files
+      run: Expand-Archive ngrok.zip -DestinationPath .
+      shell: powershell
+
+    - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token)
+      # !!! CẢNH BÁO BẢO MẬT !!! Token được nhúng trực tiếp.
+      # Nên sử dụng GitHub Secrets thay thế.
+      run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm
+      shell: cmd # Sử dụng cmd để chạy ngrok.exe
+
+    - name: Enable RDP Access
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-        copy wallpaper.jpg D:\a\wallpaper.jpg
-        copy wallpaper.bat D:\a\wallpaper.bat
-    - name: Creating Tunnel.
-      # Chạy ngrok trong một tiến trình Powershell riêng biệt để không block workflow
-      run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok\ngrok.exe tcp 3389"'
-    - name: Connecting to RDP (setting user password and starting Keep Alive).
-      # Lưu ý: Đoạn mã gốc dùng start.bat, nhưng nội dung start.bat thường là set password và chạy loop.
-      # Để rõ ràng hơn, có thể thực hiện trực tiếp tại đây hoặc giữ nguyên nếu start.bat làm đúng việc đó.
-      # Giả sử start.bat chứa lệnh đổi mật khẩu và chạy loop.ps1
+        # Sao chép wallpaper nếu cần thiết bởi start.bat hoặc wallpaper.bat
+        # Đường dẫn D:\a thường là thư mục gốc của runner trong Actions, cần kiểm tra lại nếu script yêu cầu đường dẫn khác
+        # copy wallpaper.jpg D:\a\wallpaper.jpg
+        # copy wallpaper.bat D:\a\wallpaper.bat
+      shell: powershell
+
+    - name: Create Ngrok Tunnel in Background
+      run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok.exe tcp 3389"'
+      shell: powershell
+
+    - name: Wait for Ngrok initialization
+      run: Start-Sleep -Seconds 20 # Chờ Ngrok khởi động
+      shell: powershell
+
+    - name: Run Setup Script (start.bat from hoanhanhvunick1/rdpaa)
+      # Chạy script start.bat tải từ kho mới.
+      # Đảm bảo nội dung start.bat trong kho mới là chính xác và không cần jq.
+      # Kiểm tra địa chỉ RDP trên dashboard Ngrok.
       run: cmd /c start.bat
-    - name: RDP preparation possibly finished (check logs).
-      # Đoạn mã gốc có tải loop.ps1 và chạy nó ở cuối. Nếu start.bat đã chạy loop rồi thì bước này có thể thừa.
-      # Nếu start.bat chỉ đổi pass, thì mới cần chạy loop ở đây.
-      # Giả định start.bat đã chạy loop, nên bước này có thể không cần thiết hoặc cần điều chỉnh.
-      run: |
-        echo "RDP setup is likely complete. Check the Ngrok tunnel process window for the address."
-        # Dòng dưới này có thể không cần nếu start.bat đã chạy loop.ps1
-        # Invoke-WebRequest https://github.com/30dayscoding/rdp/raw/main/loop.ps1 -OutFile loop.ps1
-        # ./loop.ps1
+      shell: cmd
+
+    - name: Start Keep Alive Loop (IMPORTANT)
+      # Chạy script loop.ps1 tải từ kho mới để giữ runner hoạt động.
+      run: ./loop.ps1
+      shell: powershell # loop.ps1 là script PowerShell
