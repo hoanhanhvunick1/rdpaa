@@ -1,4 +1,4 @@
-name: FreeRDP_Connect_Info_Manual_hoanhanhvunick1
+name: FreeRDP_Hardcoded_Token_hoanhanhvunick1
 
 on: workflow_dispatch
 
@@ -16,7 +16,7 @@ jobs:
         Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
         # Tải loop.ps1 từ kho của bạn
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/loop.ps1 -OutFile loop.ps1
-        # Tải wallpaper nếu cần (kiểm tra lại đường dẫn trong start.bat inline bên dưới nếu dùng)
+        # Tải wallpaper nếu cần
         # Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.jpg -OutFile wallpaper.jpg
         # Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.bat -OutFile wallpaper.bat
 
@@ -25,13 +25,13 @@ jobs:
       run: Expand-Archive ngrok.zip -DestinationPath .
       shell: powershell
 
-    # Bước 3: Cấu hình token Ngrok (Sử dụng Secrets)
-    - name: Connecting to your Ngrok account using Secrets (Fixed Shell)
-      # Sử dụng shell: powershell để hiểu cú pháp $Env:
-      shell: powershell
-      run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }} # Đảm bảo bạn đã tạo Secret này
+    # ---- Bước 3: Cấu hình token Ngrok (NHÚNG TRỰC TIẾP - CẢNH BÁO BẢO MẬT!) ----
+    - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token)
+      # !!! CẢNH BÁO NGHIÊM TRỌNG: Token Ngrok của bạn bị lộ trong code này !!!
+      shell: cmd # Hoặc powershell, cả hai đều chạy được lệnh này
+      run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm
+      # Không cần khối 'env:' khi token được nhúng trực tiếp
+    # -----------------------------------------------------------------------------
 
     # Bước 4: Kích hoạt RDP
     - name: Activating RDP access
@@ -49,14 +49,14 @@ jobs:
       run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok.exe tcp 3389"'
       shell: powershell
 
-    # Bước 6: Chờ Ngrok khởi động (Vẫn nên có)
+    # Bước 6: Chờ Ngrok khởi động
     - name: Wait for Ngrok potentially start
       run: Start-Sleep -Seconds 25
       shell: powershell
 
     # Bước 7: Chạy Script cài đặt (Nội dung start.bat KHÔNG kiểm tra Ngrok)
     - name: Run Setup Script Inline (No Ngrok Check)
-      shell: cmd # Quan trọng: dùng cmd vì đây là lệnh batch
+      shell: cmd
       run: |
         @echo off
         echo Starting basic setup script (inline)...
