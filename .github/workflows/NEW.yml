@@ -15,23 +15,27 @@ jobs:
         Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/start.bat -OutFile start.bat
         Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/wallpaper.jpg -OutFile wallpaper.jpg
         Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/wallpaper.bat -OutFile wallpaper.bat
+
     - name: Extracting Ngrok Files.
       run: Expand-Archive ngrok.zip
+
     - name: Connecting to your Ngrok account.
-      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: 2wJKulGFz5epx4aCWHGefM0A7eV_8WYC5MbNkr6gyimLJ29i
+      run: .\ngrok\ngrok.exe authtoken 2wJKulGFz5epx4aCWHGefM0A7eV_8WYC5MbNkr6gyimLJ29i
+
     - name: Activating RDP access.
       run: | 
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
         copy wallpaper.jpg D:\a\wallpaper.jpg
         copy wallpaper.bat D:\a\wallpaper.bat
+
     - name: Creating Tunnel.
       run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok\ngrok.exe tcp 3389"'
+
     - name: Connecting to your RDP.
       run: cmd /c start.bat
+
     - name: RDP is ready!
       run: | 
         Invoke-WebRequest https://github.com/30dayscoding/rdp/raw/main/loop.ps1 -OutFile loop.ps1
