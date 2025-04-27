@@ -13,11 +13,10 @@ sc start audiosrv >nul
 ICACLS C:\Windows\Temp /grant administrator:F >nul
 ICACLS C:\Windows\installer /grant administrator:F >nul
 echo Success!
+tasklist | find /i "ngrok.exe" 
+curl -s localhost:4040/api/tunnel
 echo IP:
-REM --- PHẦN ĐƯỢC SỬA ĐỔI ---
-REM Kiểm tra xem ngrok có chạy không, nếu có thì yêu cầu kiểm tra dashboard, nếu không thì báo lỗi.
-tasklist | find /i "ngrok.exe" >Nul && echo Ngrok is Running - Check Dashboard for IP/Port: https://dashboard.ngrok.com/endpoints/status || echo WARNING: Ngrok process not found or tunnel failed! Check logs.
-REM --- KẾT THÚC PHẦN SỬA ĐỔI ---
+tasklist | find /i "ngrok.exe" >Nul && curl -s localhost:4040/api/tunnels | jq -r .tunnels[0].public_url || echo "Failed to retreive NGROK authtoken - check again your authtoken"
 echo Username: administrator
 echo Password: JohnTech1234
 echo You can login now.
