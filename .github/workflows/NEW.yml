@@ -20,12 +20,39 @@ jobs:
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.jpg -OutFile wallpaper.jpg
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.bat -OutFile wallpaper.bat
       shell: powershell
+      # Bước 2: Giải nén Ngrok
+      - name: Extract Ngrok Files
+        # Giải nén vào thư mục làm việc hiện tại
+        run: Expand-Archive ngrok.zip -DestinationPath .
+        shell: powershell
 
-    # Bước 2: Giải nén Ngrok
-    - name: Extract Ngrok Files
-      # Giải nén vào thư mục làm việc hiện tại
-      run: Expand-Archive ngrok.zip -DestinationPath .
-      shell: powershell
+      # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
+      - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token) # <-- DÒNG 31 PHẢI THẲNG HÀNG VỚI "- name:" Ở TRÊN
+        # !!! CẢNH BÁO: Token nhúng trực tiếp vào code là rủi ro bảo mật !!!
+        run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm # <-- Dòng này thụt vào so với dòng 31
+        shell: cmd # <-- Dòng này thụt vào và thẳng hàng với run: ở trên
+
+      # Bước 4: Kích hoạt RDP
+      - name: Enable RDP Access # <-- Dòng này lại thẳng hàng với "- name:" ở trên
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        shell: powershell
+
+      # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
+      - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token) # <-- DÒNG 31 PHẢI THẲNG HÀNG VỚI "- name:" Ở TRÊN
+        # !!! CẢNH BÁO: Token nhúng trực tiếp vào code là rủi ro bảo mật !!!
+        run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm # <-- Dòng này thụt vào so với dòng 31
+        shell: cmd # <-- Dòng này thụt vào và thẳng hàng với run: ở trên
+
+      # Bước 4: Kích hoạt RDP
+      - name: Enable RDP Access # <-- Dòng này lại thẳng hàng với "- name:" ở trên
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        shell: powershell
 
     # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
     - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token)
