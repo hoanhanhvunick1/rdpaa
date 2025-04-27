@@ -1,4 +1,4 @@
-name: FreeRDP_From_hoanhanhvunick1_Repo
+name: FreeRDP_From_hoanhanhvunick1_Repo_With_Ngrok_Logging
 
 on: workflow_dispatch
 
@@ -6,75 +6,75 @@ jobs:
   build:
 
     runs-on: windows-latest
-    timeout-minutes: 9999 # Cân nhắc giảm nếu không cần thiết
+    timeout-minutes: 9999
 
     steps:
     # Bước 1: Tải Ngrok và các file từ kho hoanhanhvunick1/rdpaa
-    - name: Download Ngrok and scripts from hoanhanhvunick1/rdpaa
-      # Sử dụng Powershell làm shell mặc định cho bước này
+    - name: Download Ngrok and required scripts from hoanhanhvunick1/rdpaa
       shell: powershell
       run: |
         Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-        # --- THAY ĐỔI LINK TẠI ĐÂY ---
-        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/start.bat -OutFile start.bat
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/start.bat -OutFile start.bat # Đảm bảo file này có mã hóa ANSI
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/loop.ps1 -OutFile loop.ps1
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.jpg -OutFile wallpaper.jpg
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.bat -OutFile wallpaper.bat
-        # --- KẾT THÚC THAY ĐỔI LINK ---
 
     # Bước 2: Giải nén Ngrok
     - name: Extract Ngrok Files
-      # Giải nén vào thư mục hiện tại (.)
       run: Expand-Archive ngrok.zip -DestinationPath .
       shell: powershell
 
-    # Bước 3: Kết nối tài khoản Ngrok dùng GitHub Secrets (Cách an toàn)
+    # Bước 3: Kết nối tài khoản Ngrok dùng GitHub Secrets
     - name: Connecting to your Ngrok account using Secrets
-      # Chạy ngrok.exe từ thư mục hiện tại
       run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-      # Sử dụng shell cmd để chạy file exe và truy cập biến môi trường
       shell: cmd
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
     # Bước 4: Kích hoạt RDP
     - name: Activating RDP access
-      # Sử dụng Powershell
       shell: powershell
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-        # Kiểm tra xem start.bat có thực sự cần các file này ở D:\a không
-        # Nếu không chắc, có thể copy vào thư mục hiện tại (.) thay thế
-        # copy wallpaper.jpg .
-        # copy wallpaper.bat .
-        copy wallpaper.jpg D:\a\wallpaper.jpg
-        copy wallpaper.bat D:\a\wallpaper.bat
+        copy wallpaper.jpg D:\a\wallpaper.jpg # Xem lại đường dẫn nếu cần
+        copy wallpaper.bat D:\a\wallpaper.bat # Xem lại đường dẫn nếu cần
 
-    # Bước 5: Tạo Tunnel Ngrok chạy nền
-    - name: Creating Tunnel
-      # Chạy trong Powershell riêng
-      run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok.exe tcp 3389"'
+    # ---- Bước 5: SỬA ĐỔI ĐỂ GHI LOG NGORK ----
+    - name: Creating Tunnel and Logging Ngrok Output
       shell: powershell
+      run: |
+        # Chạy ngrok và chuyển hướng output/error vào file log
+        # Không dùng Start-Process nữa, chạy trực tiếp trong nền của shell hiện tại
+        # Dùng Start-Job để chạy nền tốt hơn trong PowerShell
+        Start-Job -ScriptBlock { .\ngrok.exe tcp 3389 *> ngrok_combined.log }
 
-    # Bước 6: Chờ Ngrok khởi động (Rất khuyến khích thêm bước này)
+    # Bước 6: Chờ Ngrok khởi động và ghi log
     - name: Wait for Ngrok initialization
-      run: Start-Sleep -Seconds 25 # Chờ 25 giây
+      run: Start-Sleep -Seconds 20 # Giảm thời gian chờ một chút vì chạy trực tiếp
       shell: powershell
 
-    # Bước 7: Chạy start.bat (từ kho của bạn)
+    # ---- Bước 7: THÊM BƯỚC KIỂM TRA LOG NGORK ----
+    - name: Display Ngrok Logs
+      shell: powershell
+      # Lấy Job vừa chạy nền, chờ nó một chút rồi lấy output (nếu có)
+      # Quan trọng: Lấy nội dung file log mà ngrok ghi vào
+      run: |
+        echo "--- Checking Ngrok Process ---"
+        Get-Process ngrok -ErrorAction SilentlyContinue
+        echo "--- Displaying ngrok_combined.log ---"
+        Get-Content .\ngrok_combined.log -ErrorAction SilentlyContinue
+
+    # Bước 8: Chạy start.bat (từ kho của bạn)
     - name: Connecting to your RDP (Running start.bat)
-      # Chạy file start.bat đã tải về
       run: cmd /c start.bat
       shell: cmd
 
-    # Bước 8: Tải và chạy loop.ps1 để giữ kết nối (QUAN TRỌNG)
+    # Bước 9: Tải và chạy loop.ps1 để giữ kết nối
     - name: RDP is ready! Start Keep Alive loop.
-      # Sử dụng Powershell
       shell: powershell
       run: |
-        # --- THAY ĐỔI LINK TẠI ĐÂY ---
-        Invoke-WebRequest https://github.com/hoanhanhvunick1/rdpaa/raw/main/loop.ps1 -OutFile loop.ps1
-        # --- KẾT THÚC THAY ĐỔI LINK ---
-        # Chạy loop.ps1 từ thư mục hiện tại
+        # Đảm bảo loop.ps1 đã được tải ở bước 1
+        # Invoke-WebRequest https://github.com/hoanhanhvunick1/rdpaa/raw/main/loop.ps1 -OutFile loop.ps1
         .\loop.ps1
