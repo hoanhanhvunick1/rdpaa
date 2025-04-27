@@ -1,4 +1,4 @@
-name: FreeRDP_Inline_StartScript_hoanhanhvunick1
+name: FreeRDP_Download_StartScript_hoanhanhvunick1
 
 on: workflow_dispatch
 
@@ -6,53 +6,26 @@ jobs:
   build:
 
     runs-on: windows-latest
-    timeout-minutes: 9999 # Thời gian chờ tối đa, cân nhắc giảm nếu không cần thiết
+    timeout-minutes: 9999 # Thời gian chờ tối đa
 
     steps:
-    # Bước 1: Tải Ngrok và các file hỗ trợ từ kho hoanhanhvunick1/rdpaa (TRỪ start.bat)
-    - name: Download Ngrok and supporting files from hoanhanhvunick1/rdpaa
+    # Bước 1: Tải Ngrok và các file cần thiết TỪ KHO CỦA BẠN
+    - name: Download Ngrok and required scripts from hoanhanhvunick1/rdpaa
       run: |
-        # Tải Ngrok
         Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-        # Tải loop.ps1 từ kho của bạn
+        # Tải start.bat (phiên bản đã sửa lỗi mà bạn vừa cập nhật vào kho)
+        Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/start.bat -OutFile start.bat
+        # Tải loop.ps1
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/loop.ps1 -OutFile loop.ps1
-        # Tải wallpaper nếu cần (sử dụng trong script inline bên dưới)
+        # Tải wallpaper nếu cần
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.jpg -OutFile wallpaper.jpg
         Invoke-WebRequest https://raw.githubusercontent.com/hoanhanhvunick1/rdpaa/main/wallpaper.bat -OutFile wallpaper.bat
       shell: powershell
-      # Bước 2: Giải nén Ngrok
-      - name: Extract Ngrok Files
-        # Giải nén vào thư mục làm việc hiện tại
-        run: Expand-Archive ngrok.zip -DestinationPath .
-        shell: powershell
 
-      # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
-      - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token) # <-- DÒNG 31 PHẢI THẲNG HÀNG VỚI "- name:" Ở TRÊN
-        # !!! CẢNH BÁO: Token nhúng trực tiếp vào code là rủi ro bảo mật !!!
-        run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm # <-- Dòng này thụt vào so với dòng 31
-        shell: cmd # <-- Dòng này thụt vào và thẳng hàng với run: ở trên
-
-      # Bước 4: Kích hoạt RDP
-      - name: Enable RDP Access # <-- Dòng này lại thẳng hàng với "- name:" ở trên
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-        shell: powershell
-
-      # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
-      - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token) # <-- DÒNG 31 PHẢI THẲNG HÀNG VỚI "- name:" Ở TRÊN
-        # !!! CẢNH BÁO: Token nhúng trực tiếp vào code là rủi ro bảo mật !!!
-        run: .\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm # <-- Dòng này thụt vào so với dòng 31
-        shell: cmd # <-- Dòng này thụt vào và thẳng hàng với run: ở trên
-
-      # Bước 4: Kích hoạt RDP
-      - name: Enable RDP Access # <-- Dòng này lại thẳng hàng với "- name:" ở trên
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-        shell: powershell
+    # Bước 2: Giải nén Ngrok
+    - name: Extract Ngrok Files
+      run: Expand-Archive ngrok.zip -DestinationPath .
+      shell: powershell
 
     # Bước 3: Cấu hình token Ngrok (Nhúng trực tiếp - CẢNH BÁO BẢO MẬT!)
     - name: Configure Ngrok Authtoken (WARNING: Insecure Hardcoded Token)
@@ -70,53 +43,22 @@ jobs:
 
     # Bước 5: Tạo Tunnel Ngrok chạy nền
     - name: Create Ngrok Tunnel in Background
-      # Chạy trong Powershell riêng để không block workflow
       run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok.exe tcp 3389"'
       shell: powershell
 
-    # Bước 6: Chờ Ngrok khởi động
+    # Bước 6: Chờ Ngrok khởi động (Khuyến nghị)
     - name: Wait for Ngrok initialization
-      # Chờ 20-30 giây để đảm bảo Ngrok sẵn sàng
       run: Start-Sleep -Seconds 25
       shell: powershell
 
-    # Bước 7: Chạy Script cài đặt (Nội dung start.bat đã sửa đổi được nhúng vào đây)
-    - name: Run Setup Script Inline (Modified start.bat)
-      # Quan trọng: Sử dụng shell cmd vì đây là nội dung file batch
+    # Bước 7: Chạy file start.bat ĐÃ TẢI VỀ (Phiên bản sửa lỗi từ kho của bạn)
+    - name: Run Setup Script (start.bat from hoanhanhvunick1/rdpaa)
+      # Chạy file start.bat đã tải ở Bước 1
+      run: cmd /c start.bat
       shell: cmd
-      run: |
-        @echo off
-        echo Starting setup script (inline)...
-        del /f "C:\Users\Public\Desktop\Epic Games Launcher.lnk" > out.txt 2>&1
-        net config server /srvcomment:"Windows Server 2019 Prepared by Workflow" > out.txt 2>&1
-        REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /V EnableAutoTray /T REG_DWORD /D 0 /F > out.txt 2>&1
-        REM Dòng dưới thêm wallpaper vào startup. Đảm bảo .\wallpaper.bat tồn tại. Bỏ REM nếu muốn dùng.
-        REM REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /f /v Wallpaper /t REG_SZ /d .\wallpaper.bat
-        echo Setting up user account...
-        net user administrator JohnTech1234 /add >nul
-        net localgroup administrators administrator /add >nul
-        net user administrator /active:yes >nul
-        net user installer /delete >nul 2>&1
-        echo Configuring system...
-        diskperf -Y >nul
-        sc config Audiosrv start= auto >nul
-        sc start Audiosrv >nul
-        ICACLS C:\Windows\Temp /grant administrator:F >nul
-        ICACLS C:\Windows\installer /grant administrator:F >nul
-        echo Basic setup complete.
-        echo Checking Ngrok status...
-        REM ---- Phần kiểm tra Ngrok đã sửa đổi ----
-        tasklist | find /i "ngrok.exe" >Nul && echo Ngrok is Running - Check Dashboard for IP/Port: https://dashboard.ngrok.com/endpoints/status || echo WARNING: Ngrok process not found or tunnel failed! Check Action logs.
-        REM ----------------------------------------
-        echo.
-        echo RDP Login Information:
-        echo Username: administrator
-        echo Password: JohnTech1234
-        echo.
-        echo You should be able to connect via RDP if Ngrok tunnel is active.
 
     # Bước 8: Chạy vòng lặp giữ kết nối (QUAN TRỌNG!)
     - name: Start Keep Alive Loop (IMPORTANT)
       # Chạy script loop.ps1 đã tải về từ kho của bạn
       run: .\loop.ps1
-      shell: powershell # loop.ps1 là script PowerShell
+      shell: powershell
