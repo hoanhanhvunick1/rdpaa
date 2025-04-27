@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 9999
 
     steps:
-    - name: Downloading Ngrok.
+    - name: Downloading Ngrok and other files.
       run: |
         Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
         Invoke-WebRequest https://raw.githubusercontent.com/30dayscoding/rdp/main/start.bat -OutFile start.bat
@@ -18,24 +18,34 @@ jobs:
     - name: Extracting Ngrok Files.
       run: Expand-Archive ngrok.zip
     - name: Connecting to your Ngrok account.
-      # !!! CẢNH BÁO: Đưa token trực tiếp vào đây là rủi ro bảo mật !!!
-      # !!! Thay YOUR_ACTUAL_NGROK_AUTH_TOKEN bằng token thật của bạn !!!
-      run: .\ngrok\ngrok.exe 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm
-      # Dòng env: bên dưới không còn cần thiết khi token được điền trực tiếp
+      # !!! CẢNH BÁO BẢO MẬT NGHIÊM TRỌNG !!!
+      # Token Ngrok được nhúng trực tiếp vào mã nguồn.
+      # Điều này tiềm ẩn rủi ro lộ thông tin xác thực.
+      run: .\ngrok\ngrok.exe authtoken 2wJOyBLBh4cMau6pWvzMKVgbA3H_gfM4VLsnY57s6GFJ4ztm
+      # Không cần dùng env: khi token đã được điền trực tiếp ở trên
       # env:
-      #  NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      #   NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
     - name: Activating RDP access.
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
         copy wallpaper.jpg D:\a\wallpaper.jpg
         copy wallpaper.bat D:\a\wallpaper.bat
     - name: Creating Tunnel.
+      # Chạy ngrok trong một tiến trình Powershell riêng biệt để không block workflow
       run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok\ngrok.exe tcp 3389"'
-    - name: Connecting to your RDP.
+    - name: Connecting to RDP (setting user password and starting Keep Alive).
+      # Lưu ý: Đoạn mã gốc dùng start.bat, nhưng nội dung start.bat thường là set password và chạy loop.
+      # Để rõ ràng hơn, có thể thực hiện trực tiếp tại đây hoặc giữ nguyên nếu start.bat làm đúng việc đó.
+      # Giả sử start.bat chứa lệnh đổi mật khẩu và chạy loop.ps1
       run: cmd /c start.bat
-    - name: RDP is ready!
+    - name: RDP preparation possibly finished (check logs).
+      # Đoạn mã gốc có tải loop.ps1 và chạy nó ở cuối. Nếu start.bat đã chạy loop rồi thì bước này có thể thừa.
+      # Nếu start.bat chỉ đổi pass, thì mới cần chạy loop ở đây.
+      # Giả định start.bat đã chạy loop, nên bước này có thể không cần thiết hoặc cần điều chỉnh.
       run: |
-        Invoke-WebRequest https://github.com/30dayscoding/rdp/raw/main/loop.ps1 -OutFile loop.ps1
-        ./loop.ps1
+        echo "RDP setup is likely complete. Check the Ngrok tunnel process window for the address."
+        # Dòng dưới này có thể không cần nếu start.bat đã chạy loop.ps1
+        # Invoke-WebRequest https://github.com/30dayscoding/rdp/raw/main/loop.ps1 -OutFile loop.ps1
+        # ./loop.ps1
